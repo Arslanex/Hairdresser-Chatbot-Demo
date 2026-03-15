@@ -43,12 +43,12 @@ ok ".env dosyasi bulundu"
 
 # ─── 2. Python kontrolu ──────────────────────────────────
 PYTHON=""
-for cmd in python3.12 python3.11 python3.10 python3 python; do
+for cmd in python3.13 python3.12 python3.11 python3 python; do
     if command -v "$cmd" &>/dev/null; then
         VER=$("$cmd" -c 'import sys; print(sys.version_info[:2])' 2>/dev/null || echo "(0, 0)")
         MAJ=$(echo "$VER" | tr -d '()' | cut -d',' -f1 | tr -d ' ')
         MIN=$(echo "$VER" | tr -d '()' | cut -d',' -f2 | tr -d ' ')
-        if [[ "$MAJ" -eq 3 && "$MIN" -ge 10 && "$MIN" -le 13 ]]; then
+        if [[ "$MAJ" -eq 3 && "$MIN" -ge 11 && "$MIN" -le 13 ]]; then
             PYTHON="$cmd"
             break
         fi
@@ -56,19 +56,16 @@ for cmd in python3.12 python3.11 python3.10 python3 python; do
 done
 
 if [[ -z "$PYTHON" ]]; then
-    err "Python 3.10-3.13 bulunamadi!"
+    err "Python 3.11-3.13 bulunamadi!"
     echo
-    echo "        Python 3.14+ bazi kutuphaneler icin hazir paket sunmuyor"
-    echo "        (derleme sirasinda Rust gerektiriyor). Python 3.12 veya 3.13 onerilir."
+    echo "        Python 3.14+ bazi kutuphaneler icin hazir paket sunmuyor."
+    echo "        Python 3.12 veya 3.13 onerilir."
     echo
     if [[ "$(uname)" == "Darwin" ]]; then
-        echo "        Mac icin kurulum:"
-        echo "          brew install python@3.13"
-        echo "          veya: https://www.python.org/downloads/"
+        echo "        Mac: brew install python@3.13"
     else
-        echo "        Linux icin kurulum:"
-        echo "          sudo apt install python3.12  (Ubuntu/Debian)"
-        echo "          sudo dnf install python3.12  (Fedora/RHEL)"
+        echo "        Ubuntu/Debian: sudo apt install python3.12"
+        echo "        Fedora/RHEL:   sudo dnf install python3.12"
     fi
     echo
     exit 1
@@ -120,14 +117,51 @@ else
     ok "Admin UI mevcut"
 fi
 
-# ─── 7. Sunucuyu baslat ──────────────────────────────────
+# ─── 7. ngrok kontrolu ve baslatma ───────────────────────
+NGROK_URL=""
+NGROK_PID=""
+if command -v ngrok &>/dev/null; then
+    info "ngrok baslatiliyor..."
+    ngrok http 8000 --log=stdout > /tmp/ngrok-chatbot.log 2>&1 &
+    NGROK_PID=$!
+    # Tunnel acilmasini bekle (max 5 sn)
+    for i in {1..10}; do
+        sleep 0.5
+        NGROK_URL=$(python3 -c "
+import urllib.request, json
+try:
+    d = json.loads(urllib.request.urlopen('http://127.0.0.1:4040/api/tunnels', timeout=1).read())
+    urls = [t['public_url'] for t in d.get('tunnels', []) if t['public_url'].startswith('https')]
+    print(urls[0] if urls else '')
+except: print('')
+" 2>/dev/null || true)
+        [[ -n "$NGROK_URL" ]] && break
+    done
+    if [[ -n "$NGROK_URL" ]]; then
+        ok "ngrok tunnel actildi"
+    else
+        warn "ngrok URL alinamadi - manuel kontrol: http://127.0.0.1:4040"
+    fi
+else
+    warn "ngrok bulunamadi - WhatsApp webhook icin gerekli"
+    warn "Kurmak icin: https://ngrok.com/download"
+fi
+
+# ─── 8. Sunucuyu baslat ──────────────────────────────────
 echo
 echo " ================================================"
 echo "  Sunucu baslatiliyor..."
-echo "  Adres : http://localhost:8000"
-echo "  Admin : http://localhost:8000/admin-ui"
-echo "  Docs  : http://localhost:8000/docs"
-echo "  Dur   : ./stop.sh  veya  CTRL+C"
+echo "  Yerel  : http://localhost:8000"
+echo "  Admin  : http://localhost:8000/admin-ui"
+echo "  Docs   : http://localhost:8000/docs"
+if [[ -n "$NGROK_URL" ]]; then
+    echo "  Genel  : $NGROK_URL"
+    echo "  Webhook: $NGROK_URL/webhook"
+    echo
+    echo "  Meta Developer Console'da webhook URL'ini guncelle:"
+    echo "  $NGROK_URL/webhook"
+fi
+echo "  Dur    : ./stop.sh  veya  CTRL+C"
 echo " ================================================"
 echo
 
@@ -139,8 +173,8 @@ cleanup() {
     echo
     info "Durduruluyor..."
     kill "$UVICORN_PID" 2>/dev/null || true
-    # Alt surecler (watchfiles vb.)
     pkill -P "$UVICORN_PID" 2>/dev/null || true
+    [[ -n "$NGROK_PID" ]] && kill "$NGROK_PID" 2>/dev/null || true
     rm -f "$PID_FILE"
     ok "Sunucu durduruldu."
     exit 0
