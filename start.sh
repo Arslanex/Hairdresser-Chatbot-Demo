@@ -48,7 +48,7 @@ for cmd in python3.12 python3.11 python3.10 python3 python; do
         VER=$("$cmd" -c 'import sys; print(sys.version_info[:2])' 2>/dev/null || echo "(0, 0)")
         MAJ=$(echo "$VER" | tr -d '()' | cut -d',' -f1 | tr -d ' ')
         MIN=$(echo "$VER" | tr -d '()' | cut -d',' -f2 | tr -d ' ')
-        if [[ "$MAJ" -ge 3 && "$MIN" -ge 10 ]]; then
+        if [[ "$MAJ" -eq 3 && "$MIN" -ge 10 && "$MIN" -le 13 ]]; then
             PYTHON="$cmd"
             break
         fi
@@ -56,17 +56,19 @@ for cmd in python3.12 python3.11 python3.10 python3 python; do
 done
 
 if [[ -z "$PYTHON" ]]; then
-    err "Python 3.10+ bulunamadi!"
+    err "Python 3.10-3.13 bulunamadi!"
     echo
-    # Mac
+    echo "        Python 3.14+ bazi kutuphaneler icin hazir paket sunmuyor"
+    echo "        (derleme sirasinda Rust gerektiriyor). Python 3.12 veya 3.13 onerilir."
+    echo
     if [[ "$(uname)" == "Darwin" ]]; then
-        echo "        Mac icin kurulum secenekleri:"
-        echo "        1) brew install python@3.12"
-        echo "        2) https://www.python.org/downloads/"
+        echo "        Mac icin kurulum:"
+        echo "          brew install python@3.13"
+        echo "          veya: https://www.python.org/downloads/"
     else
         echo "        Linux icin kurulum:"
-        echo "        sudo apt install python3.12  (Ubuntu/Debian)"
-        echo "        sudo dnf install python3.12  (Fedora/RHEL)"
+        echo "          sudo apt install python3.12  (Ubuntu/Debian)"
+        echo "          sudo dnf install python3.12  (Fedora/RHEL)"
     fi
     echo
     exit 1

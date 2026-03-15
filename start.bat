@@ -45,12 +45,30 @@ for /f "tokens=1,2 delims=." %%a in ("!PYVER!") do (
     set PYMIN=%%b
 )
 if !PYMAJ! LSS 3 (
-    echo  [HATA] Python 3.10+ gerekli, bulunan: !PYVER!
+    echo  [HATA] Python 3.10-3.12 gerekli, bulunan: !PYVER!
+    echo.
+    echo         Lutfen Python 3.12 yukleyin: https://www.python.org/downloads/
     pause
     exit /b 1
 )
 if !PYMAJ! EQU 3 if !PYMIN! LSS 10 (
-    echo  [HATA] Python 3.10+ gerekli, bulunan: !PYVER!
+    echo  [HATA] Python 3.10-3.12 gerekli, bulunan: !PYVER!
+    echo.
+    echo         Lutfen Python 3.12 yukleyin: https://www.python.org/downloads/
+    pause
+    exit /b 1
+)
+if !PYMAJ! EQU 3 if !PYMIN! GTR 13 (
+    echo  [HATA] Python !PYVER! desteklenmiyor!
+    echo.
+    echo         Python 3.14+ icin kutuphanelerin hazir paketi (wheel) henuz yok,
+    echo         kaynak koddan derleme gerekiyor ve Rust kurulumu istiyor.
+    echo.
+    echo         Cozum: Python 3.12 veya 3.13 yukleyin:
+    echo         https://www.python.org/downloads/
+    echo.
+    echo         Kurulum sirasinda "Add Python to PATH" secenegini isaretleyin.
+    echo         Kurulumdan sonra mevcut .venv klasorunu silin ve tekrar calistirin.
     pause
     exit /b 1
 )
